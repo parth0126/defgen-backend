@@ -39,8 +39,13 @@ def query_google(user_input):
         items = data.get("items", [])
         if not items:
             return "No Google search results found."
-        result = "\n".join(f"- {item['title']}: {item['link']}" for item in items[:3])
-        return f"Top Google search results:\n{result}"
+
+        # Format results with snippets
+        result = "\n\n".join(
+            f"🔹 {item.get('title', '')}\n{item.get('snippet', '')}"
+            for item in items[:3]
+        )
+        return f"Here’s what I found:\n\n{result}"
     except Exception as e:
         return f"[Google error] {str(e)}"
 
