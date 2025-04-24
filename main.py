@@ -19,9 +19,9 @@ app.add_middleware(
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CX = os.getenv("GOOGLE_CX")
 
-# Load models
+# Load models (lightweight + fast)
 embedder = SentenceTransformer('all-MiniLM-L6-v2')
-summarizer = pipeline("summarization", model="t5-small", tokenizer="t5-small")
+summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
 
 @app.post("/chat")
 async def chat(request: Request):
@@ -29,15 +29,16 @@ async def chat(request: Request):
     user_input = data.get("message", "")
     
     try:
-        # Google Search API request
+        # Fetch Google results
         url = f"https://www.googleapis.com/customsearch/v1?q={user_input}&key={GOOGLE_API_KEY}&cx={GOOGLE_CX}"
         res = requests.get(url)
         data = res.json()
         items = data.get("items", [])
         
         if not items:
-            return {"response": "No results found."}
+            return {"response": "No relevant content found."}
 
+        # Embed query and snippets
         query_embedding = embedder.encode(user_input, convert_to_tensor=True)
         scored_snippets = []
 
@@ -49,13 +50,18 @@ async def chat(request: Request):
             score = util.pytorch_cos_sim(query_embedding, snippet_embedding).item()
             scored_snippets.append((score, snippet))
 
-        # Sort and pick top 3 most relevant snippets
+        # Sort and select most relevant
         top_snippets = [s for _, s in sorted(scored_snippets, reverse=True)[:3]]
-        combined_text = " ".join(top_snippets)[:1000]  # Limit to safe input length
+        combined_text = " ".join(top_snippets)[:900]  # safe limit
 
         # Summarize
-        summary = summarizer(combined_text, max_length=100, min_length=30, do_sample=False)
-        return {"response": summary[0]['summary_text']}
+        summary = summarizer(
+            combined_text,
+            max_length=75,
+            min_length=25,
+            do_sample=False
+        )
+        return {"response": summary[0]["summary_text"]}
     
     except Exception as e:
         return {"response": f"[Error] {str(e)}"}

@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-transformers
-torch
-sentence-transformers
 requests
+torch
+transformers
+sentence-transformers
