@@ -18,6 +18,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CX = os.getenv("GOOGLE_CX")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+# Indian Defence Keywords
 INDIAN_DEFENCE_KEYWORDS = [
     "afspa", "agnipath", "agniveer", "akash", "arjun", "awacs", "bofors", "brahmos",
     "bsf", "capf", "cas", "cds", "coas", "cns", "csd", "crpf", "dac", "dcc", "dgqa",
@@ -48,7 +49,7 @@ def is_valid_snippet(snippet: str) -> bool:
 def summarize_with_phi2(snippets):
     combined_text = " ".join(snippets).strip()[:1024]
     if len(combined_text.split()) < 30:
-        return "Sorry, there wasn't enough relevant content to generate a meaningful answer."
+        return None  # Not enough content
 
     prompt = f"Summarize this:\n\n{combined_text}\n\nSummary:"
     url = "https://api-inference.huggingface.co/models/microsoft/phi-2"
@@ -59,12 +60,36 @@ def summarize_with_phi2(snippets):
 
     try:
         response = requests.post(url, headers=headers, json={"inputs": prompt})
+        if response.status_code == 503:
+            return None  # Phi-2 unavailable, fallback needed
         if response.status_code != 200:
             return f"[Phi-2 Error {response.status_code}]: {response.text}"
+
         result = response.json()
-        return result[0]["generated_text"].split("Summary:")[-1].strip() if isinstance(result, list) else "[Phi-2 Error] Unexpected response format"
+        return result[0]["generated_text"].split("Summary:")[-1].strip() if isinstance(result, list) else None
     except Exception as e:
         return f"[Phi-2 Exception] {str(e)}"
+
+def summarize_with_distilbart(snippets):
+    combined_text = " ".join(snippets).strip()[:1024]
+    if len(combined_text.split()) < 30:
+        return "Sorry, there wasn't enough relevant content to generate a meaningful answer."
+
+    url = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6"
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json={"inputs": combined_text})
+        if response.status_code != 200:
+            return f"[DistilBART Error {response.status_code}]: {response.text}"
+
+        result = response.json()
+        return result[0]["summary_text"] if isinstance(result, list) else "[DistilBART Error] Unexpected format"
+    except Exception as e:
+        return f"[DistilBART Exception] {str(e)}"
 
 def query_google(user_input):
     try:
@@ -85,7 +110,13 @@ def query_google(user_input):
             fallback = next((item.get("snippet") for item in items if item.get("snippet")), None)
             return f"(Fallback snippet)\n\n{fallback}" if fallback else "No useful information found."
 
-        return summarize_with_phi2(snippets)
+        # Try summarizing first with Phi-2
+        summary = summarize_with_phi2(snippets)
+        if summary is None or "[Phi-2" in summary:
+            # Fall back to DistilBART if Phi-2 fails
+            summary = summarize_with_distilbart(snippets)
+        
+        return summary
 
     except Exception as e:
         return f"[Google Error] {str(e)}"
