@@ -20,8 +20,23 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 
 # Keywords for defence topic filter
 INDIAN_DEFENCE_KEYWORDS = [
-    "army", "navy", "air force", "drdo", "missile", "defence", "military", "soldier", "ssb", "agni",
-    "brahmos", "tejas", "marcos", "raw", "iaf", "hal", "mod", "ncc", "nda", "cds", "para sf"
+    "afspa", "agnipath", "agniveer", "akash", "arjun", "awacs", "bofors", "brahmos",
+    "bsf", "capf", "cas", "cds", "coas", "cns", "csd", "crpf", "dac", "dcc", "dgqa",
+    "drdo", "hal", "ins", "iaf", "idsa", "lca", "marcos", "mbt", "ncc", "nda", "nsg",
+    "ofb", "para sf", "pinaka", "raw", "rdx", "rpf", "sam", "sar", "ssb", "spg",
+    "tejas", "uav", "uas", "udhampur hq", "unpkf", "vikrant", "vikramaditya",
+    "indian army", "indian navy", "indian air force", "parachute regiment",
+    "missile", "defence", "armed forces", "sf", "commando", "field marshal",
+    "general", "lieutenant general", "major general", "brigadier", "colonel",
+    "major", "captain", "lieutenant", "subedar major", "subedar", "naib subedar",
+    "havildar", "naik", "lance naik", "sepoy", "soldier", "admiral", "vice admiral",
+    "rear admiral", "commodore", "commander", "lieutenant commander", "sub lieutenant",
+    "midshipman", "marshal of the indian air force", "air chief marshal", "air marshal",
+    "air vice marshal", "air commodore", "group captain", "wing commander",
+    "squadron leader", "flight lieutenant", "flying officer", "scorpene submarine",
+    "ins arihant", "project 75", "ins kalvari", "kilo class submarine", "nuclear submarine",
+    "rafale", "mig 29", "sukhoi su 30", "hal dhruv", "netra awacs", "heron drone",
+    "ghatak uav", "rudra helicopter", "nag", "trishul", "kali", "nirbhay", "barak", "astra"
 ]
 
 # Check if the question is about Indian defence
