@@ -38,16 +38,16 @@ def query_google(user_input):
         data = res.json()
         items = data.get("items", [])
         if not items:
-            return "No Google search results found."
+            return "No search results found."
 
         # Format results with snippets
         result = "\n\n".join(
-            f"🔹 {item.get('title', '')}\n{item.get('snippet', '')}"
+            f"🔹 {item.get('snippet', '')}"
             for item in items[:3]
         )
         return f"Here’s what I found:\n\n{result}"
     except Exception as e:
-        return f"[Google error] {str(e)}"
+        return f"[search error] {str(e)}"
 
 @app.post("/chat")
 async def chat(request: Request):
