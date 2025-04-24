@@ -28,17 +28,27 @@ def summarize_text(text):
         return "Not enough context to summarize."
 
     url = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    response = requests.post(url, headers=headers, json={"inputs": text})
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {"inputs": text}
 
     try:
+        response = requests.post(url, headers=headers, json=payload)
+        
+        if response.status_code != 200:
+            return f"[HF Error] Status {response.status_code}: {response.text}"
+
         result = response.json()
+
         if isinstance(result, list) and "summary_text" in result[0]:
             return result[0]["summary_text"]
         else:
-            return "Summary generation failed."
+            return "[HF Error] No summary_text found in response."
+
     except Exception as e:
-        return f"[HF Error] {str(e)}"
+        return f"[HF Exception] {str(e)}"
 
 @app.post("/chat")
 async def chat(request: Request):
@@ -80,4 +90,4 @@ async def chat(request: Request):
         return {"response": summary_text}
 
     except Exception as e:
-        return {"response": f"[Error] {str(e)}"}
+        return {"response": f"[Server Error] {str(e)}"}
