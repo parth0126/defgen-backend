@@ -36,16 +36,20 @@ def summarize_text(text):
 
     try:
         response = requests.post(url, headers=headers, json=payload)
-        
+
+        # Debug logging
+        print("[DEBUG] HF status code:", response.status_code)
+        print("[DEBUG] HF raw text:", response.text[:200])  # Only print first 200 chars
+
         if response.status_code != 200:
-            return f"[HF Error] Status {response.status_code}: {response.text}"
+            return f"[HF Error {response.status_code}] {response.text}"
 
         result = response.json()
 
         if isinstance(result, list) and "summary_text" in result[0]:
             return result[0]["summary_text"]
         else:
-            return "[HF Error] No summary_text found in response."
+            return "[HF Error] Unexpected response format."
 
     except Exception as e:
         return f"[HF Exception] {str(e)}"
