@@ -18,7 +18,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CX = os.getenv("GOOGLE_CX")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Keywords for defence topic filter
+# Keywords to validate if question is related to Indian defence
 INDIAN_DEFENCE_KEYWORDS = [
     "afspa", "agnipath", "agniveer", "akash", "arjun", "awacs", "bofors", "brahmos",
     "bsf", "capf", "cas", "cds", "coas", "cns", "csd", "crpf", "dac", "dcc", "dgqa",
@@ -39,21 +39,19 @@ INDIAN_DEFENCE_KEYWORDS = [
     "ghatak uav", "rudra helicopter", "nag", "trishul", "kali", "nirbhay", "barak", "astra"
 ]
 
-# Check if the question is about Indian defence
+# Check whether the question is defence-related
 def is_defence_related(query: str) -> bool:
     query = query.lower()
     return any(keyword in query for keyword in INDIAN_DEFENCE_KEYWORDS)
 
-# Filter valid, meaningful snippets only
+# Clean and validate snippet quality
 def is_valid_snippet(snippet: str) -> bool:
-    if not snippet:
+    if not snippet or "..." in snippet or len(snippet.split()) < 10:
         return False
-    if "..." in snippet or len(snippet.split()) < 10:
-        return False
-    bad_tokens = ["recognise", "domestic", "doc", "timer", "666"]
-    return not any(bad_token in snippet.lower() for bad_token in bad_tokens)
+    bad_tokens = ["recognise", "doc", "timer", "domestic", "666"]
+    return not any(bad in snippet.lower() for bad in bad_tokens)
 
-# Summarize using Hugging Face API
+# Summarize snippets using Hugging Face API
 def summarize_text(snippets):
     combined_text = " ".join(snippets).strip()[:1024]
     if len(combined_text.split()) < 30:
@@ -70,11 +68,11 @@ def summarize_text(snippets):
         if response.status_code != 200:
             return f"[HF Error {response.status_code}]: {response.text}"
         result = response.json()
-        return result[0]["summary_text"] if isinstance(result, list) else "[HF Error] Unexpected format"
+        return result[0]["summary_text"] if isinstance(result, list) else "[HF Error] Unexpected response format"
     except Exception as e:
         return f"[HF Exception] {str(e)}"
 
-# Query Google and extract valid snippets
+# Fetch from Google and summarize (or fallback)
 def query_google(user_input):
     try:
         url = f"https://www.googleapis.com/customsearch/v1?q={user_input}&key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&num=10"
@@ -90,15 +88,17 @@ def query_google(user_input):
             if is_valid_snippet(item.get("snippet", ""))
         ][:5]
 
-        if not snippets:
-            return "Sorry, no clean information was found to generate an answer."
-
-        return summarize_text(snippets)
+        if snippets:
+            return summarize_text(snippets)
+        else:
+            # Fallback to the first usable snippet
+            fallback = next((item.get("snippet") for item in items if item.get("snippet")), None)
+            return f"(Fallback snippet)\n\n{fallback}" if fallback else "No useful information found."
 
     except Exception as e:
         return f"[Google Error] {str(e)}"
 
-# Handle the chatbot query
+# Main chatbot route
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
