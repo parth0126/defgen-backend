@@ -18,7 +18,6 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_CX = os.getenv("GOOGLE_CX")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# Keywords to validate if question is related to Indian defence
 INDIAN_DEFENCE_KEYWORDS = [
     "afspa", "agnipath", "agniveer", "akash", "arjun", "awacs", "bofors", "brahmos",
     "bsf", "capf", "cas", "cds", "coas", "cns", "csd", "crpf", "dac", "dcc", "dgqa",
@@ -39,40 +38,34 @@ INDIAN_DEFENCE_KEYWORDS = [
     "ghatak uav", "rudra helicopter", "nag", "trishul", "kali", "nirbhay", "barak", "astra"
 ]
 
-# Check whether the question is defence-related
 def is_defence_related(query: str) -> bool:
     query = query.lower()
     return any(keyword in query for keyword in INDIAN_DEFENCE_KEYWORDS)
 
-# Clean and validate snippet quality
 def is_valid_snippet(snippet: str) -> bool:
-    if not snippet or "..." in snippet or len(snippet.split()) < 10:
-        return False
-    bad_tokens = ["recognise", "doc", "timer", "domestic", "666"]
-    return not any(bad in snippet.lower() for bad in bad_tokens)
+    return snippet and "..." not in snippet and len(snippet.split()) >= 10
 
-# Summarize snippets using Hugging Face API
-def summarize_text(snippets):
+def summarize_with_phi2(snippets):
     combined_text = " ".join(snippets).strip()[:1024]
     if len(combined_text.split()) < 30:
         return "Sorry, there wasn't enough relevant content to generate a meaningful answer."
 
-    url = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6"
+    prompt = f"Summarize this:\n\n{combined_text}\n\nSummary:"
+    url = "https://api-inference.huggingface.co/models/microsoft/phi-2"
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
         "Content-Type": "application/json"
     }
 
     try:
-        response = requests.post(url, headers=headers, json={"inputs": combined_text})
+        response = requests.post(url, headers=headers, json={"inputs": prompt})
         if response.status_code != 200:
-            return f"[HF Error {response.status_code}]: {response.text}"
+            return f"[Phi-2 Error {response.status_code}]: {response.text}"
         result = response.json()
-        return result[0]["summary_text"] if isinstance(result, list) else "[HF Error] Unexpected response format"
+        return result[0]["generated_text"].split("Summary:")[-1].strip() if isinstance(result, list) else "[Phi-2 Error] Unexpected response format"
     except Exception as e:
-        return f"[HF Exception] {str(e)}"
+        return f"[Phi-2 Exception] {str(e)}"
 
-# Fetch from Google and summarize (or fallback)
 def query_google(user_input):
     try:
         url = f"https://www.googleapis.com/customsearch/v1?q={user_input}&key={GOOGLE_API_KEY}&cx={GOOGLE_CX}&num=10"
@@ -88,17 +81,15 @@ def query_google(user_input):
             if is_valid_snippet(item.get("snippet", ""))
         ][:5]
 
-        if snippets:
-            return summarize_text(snippets)
-        else:
-            # Fallback to the first usable snippet
+        if not snippets:
             fallback = next((item.get("snippet") for item in items if item.get("snippet")), None)
             return f"(Fallback snippet)\n\n{fallback}" if fallback else "No useful information found."
+
+        return summarize_with_phi2(snippets)
 
     except Exception as e:
         return f"[Google Error] {str(e)}"
 
-# Main chatbot route
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
